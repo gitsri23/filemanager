@@ -26,11 +26,10 @@ class _FilesScreenState extends State<FilesScreen> {
     final fileService = context.watch<FileService>();
 
     return PopScope(
-      canPop: !fileService.canGoBack, // రూట్ ఫోల్డర్ లో ఉంటేనే యాప్ క్లోజ్ అవుతుంది
+      canPop: !fileService.canGoBack,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         if (fileService.canGoBack) {
-          // సబ్-ఫోల్డర్ లో బ్యాక్ నొక్కితే వెనక ఫోల్డర్ కి వస్తుంది
           final parentPath = Directory(fileService.currentPath).parent.path;
           await fileService.loadFiles(parentPath);
         }
@@ -85,7 +84,6 @@ class _FilesScreenState extends State<FilesScreen> {
                         trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white10),
                         onTap: () async {
                           if (isDir) {
-                            // ఫోల్డర్ క్లిక్ చేస్తే లోపలికి వెళ్తుంది 🛠️
                             await fileService.loadFiles(item.path);
                           }
                         },
