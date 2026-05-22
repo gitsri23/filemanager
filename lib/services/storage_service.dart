@@ -36,8 +36,7 @@ class DuplicateGroup {
   final String hash;
   final List<FileModel> files;
   int get count => files.length;
-  int get wastedSpace =>
-      files.skip(1).fold(0, (sum, f) => sum + f.size);
+  int get wastedSpace => files.skip(1).fold(0, (sum, f) => sum + f.size);
 
   DuplicateGroup({required this.hash, required this.files});
 }
@@ -57,12 +56,10 @@ class StorageService extends ChangeNotifier {
   double get analyzeProgress => _analyzeProgress;
   String get analyzeStatus => _analyzeStatus;
 
-  int get totalDuplicateWaste =>
-      _duplicateGroups.fold(0, (s, g) => s + g.wastedSpace);
-  int get totalLargeFileSize =>
-      _largeFiles.fold(0, (s, f) => s + f.size);
+  int get totalDuplicateWaste => _duplicateGroups.fold(0, (s, g) => s + g.wastedSpace);
+  int get totalLargeFileSize => _largeFiles.fold(0, (s, f) => s + f.size);
 
-  // ─── Storage Info & Full Scan ─────────────────────────────────────────────
+  // ─── 1. Storage Info & Core Scan Execution ───────────────────────────────
 
   Future<void> analyzeStorage() async {
     if (_isAnalyzing) return;
@@ -77,17 +74,17 @@ class StorageService extends ChangeNotifier {
       _analyzeStatus = 'Initializing target scanning directories...';
       notifyListeners();
 
-      // Core Scan Execution
+      // Safe Optimized File Scanner Trigger
       final allFiles = await _scanAllFiles(
         onProgress: (progress, status) {
-          _analyzeProgress = 0.1 + (progress * 0.6); // 10% to 70% range
+          _analyzeProgress = 0.1 + (progress * 0.6); // Scales from 10% to 70%
           _analyzeStatus = status;
           notifyListeners();
         },
       );
 
       _analyzeProgress = 0.75;
-      _analyzeStatus = 'Analyzing large files (>50MB)...';
+      _analyzeStatus = 'Filtering large files (>50MB)...';
       notifyListeners();
 
       _largeFiles = allFiles
@@ -123,40 +120,14 @@ class StorageService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<Map<String, int>> _getStorageStat() async {
-    try {
-      final result = await Process.run('df', ['/storage/emulated/0']);
-      final lines = result.stdout.toString().split('\n');
-      if (lines.length > 1) {
-        final parts = lines[1].trim().split(RegExp(r'\s+'));
-        if (parts.length >= 4) {
-          final total = int.tryParse(parts[1]) ?? 0;
-          final used = int.tryParse(parts[2]) ?? 0;
-          final free = int.tryParse(parts[3]) ?? 0;
-          return {
-            'total': total * 1024,
-            'used': used * 1024,
-            'free': free * 1024,
-          };
-        }
-      }
-    } catch (_) {}
+  // ─── 2. Android Fast Folder Local Loop Scanner ───────────────────────────
 
-    // Fallback device default hardcoded mapping standard layout
-    return {
-      'total': 128 * 1024 * 1024 * 1024,
-      'free': 35 * 1024 * 1024 * 1024,
-      'used': 93 * 1024 * 1024 * 1024,
-    };
-  }
-
-  // 🛠️ Android 11+ Permission Errors రాకుండా లూప్ లో స్కాన్ చేసే ఆప్టిమైజ్డ్ మెథడ్
   Future<List<FileModel>> _scanAllFiles({
     void Function(double progress, String status)? onProgress,
   }) async {
     final files = <FileModel>[];
     
-    // Permission crash వచ్చే 'Android/data' జోన్ల జోలికి వెళ్లకుండా సేఫ్ ఫోల్డర్స్ లిస్ట్
+    // Permission crash వచ్చే 'Android/data' కాకుండా యూజర్ వాడే క్లీన్ డైరెక్టరీలు
     final targetDirs = [
       'Download',
       'DCIM',
@@ -203,11 +174,11 @@ class StorageService extends ChangeNotifier {
     return files;
   }
 
-  // ─── Duplicate Finder ────────────────────────────────────────────────────
+  // ─── 3. Duplicate Finder Mechanics ───────────────────────────────────────
 
   Future<void> findDuplicates({
     FileCategory? category,
-    int minSize = 2048, // Tiny files ని స్కిప్ చేస్తుంది స్పేస్ వేస్ట్ అవ్వకుండా
+    int minSize = 2048, // Skips empty or tiny zero-byte files
   }) async {
     _isAnalyzing = true;
     _analyzeProgress = 0;
@@ -217,7 +188,7 @@ class StorageService extends ChangeNotifier {
     try {
       final allFiles = await _scanAllFiles(
         onProgress: (p, s) {
-          _analyzeProgress = p * 0.5; // Up to 50% range tracking
+          _analyzeProgress = p * 0.5; // Scales up to 50%
           _analyzeStatus = s;
           notifyListeners();
         },
@@ -229,7 +200,7 @@ class StorageService extends ChangeNotifier {
         return true;
       }).toList();
 
-      // Quick filter: Group by exact matches of sizes first
+      // Step A: Group by file sizes first (Super fast pre-filtering)
       final sizeGroups = <int, List<FileModel>>{};
       for (final file in filtered) {
         sizeGroups.putIfAbsent(file.size, () => []).add(file);
@@ -253,7 +224,7 @@ class StorageService extends ChangeNotifier {
       _analyzeStatus = 'Computing deep checksums for ${candidates.length} candidate elements...';
       notifyListeners();
 
-      // Accurate file hashing block matching
+      // Step B: Heavy Checksum/MD5 Verification Loop
       final hashGroups = <String, List<FileModel>>{};
       int processed = 0;
 
@@ -289,11 +260,11 @@ class StorageService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Fast hash encoder configuration
+  // Optimized partial stream hashing helper
   Future<String?> _computeHash(String path) async {
     try {
       final file = File(path);
-      // Large heavy file updates లో యాప్ హ్యాంగ్ అవ్వకుండా కేవలం మొదటి 64KB బైట్స్ మాత్రమే మ్యాచ్ చేస్తుంది
+      // Reads first 64KB for verification to eliminate any micro-stuttering on high sizing files
       final stream = file.openRead(0, 64 * 1024);
       final bytes = <int>[];
       await for (final chunk in stream) {
@@ -305,7 +276,7 @@ class StorageService extends ChangeNotifier {
     }
   }
 
-  // ─── Cache Deep Cleaning ──────────────────────────────────────────────────
+  // ─── 4. Cache Cleaner Routing & Disk Estimation ──────────────────────────
 
   Future<int> deepClean() async {
     int freed = 0;
@@ -330,8 +301,7 @@ class StorageService extends ChangeNotifier {
       } catch (_) {}
     }
     
-    // UI Metric updates refresh automatically tracking
-    await analyzeStorage();
+    await analyzeStorage(); // Triggers UI re-evaluation
     return freed;
   }
 
@@ -347,12 +317,11 @@ class StorageService extends ChangeNotifier {
     return size;
   }
 
-  // ─── Duplicate Removal Trigger ────────────────────────────────────────────
+  // ─── 5. File Manipulation & Deletion ─────────────────────────────────────
 
   Future<int> deleteDuplicates(List<DuplicateGroup> groups) async {
     int freed = 0;
     for (final group in groups) {
-      // First file ని వదిలేసి (skip(1)) మిగిలిన డూప్లికేట్స్ ని డిలీట్ చేస్తుంది
       for (final file in group.files.skip(1)) {
         try {
           final ioFile = File(file.path);
@@ -366,5 +335,31 @@ class StorageService extends ChangeNotifier {
     _duplicateGroups.removeWhere((g) => groups.contains(g));
     notifyListeners();
     return freed;
+  }
+
+  Future<Map<String, int>> _getStorageStat() async {
+    try {
+      final result = await Process.run('df', ['/storage/emulated/0']);
+      final lines = result.stdout.toString().split('\n');
+      if (lines.length > 1) {
+        final parts = lines[1].trim().split(RegExp(r'\s+'));
+        if (parts.length >= 4) {
+          final total = int.tryParse(parts[1]) ?? 0;
+          final used = int.tryParse(parts[2]) ?? 0;
+          final free = int.tryParse(parts[3]) ?? 0;
+          return {
+            'total': total * 1024,
+            'used': used * 1024,
+            'free': free * 1024,
+          };
+        }
+      }
+    } catch (_) {}
+
+    return {
+      'total': 128 * 1024 * 1024 * 1024,
+      'free': 35 * 1024 * 1024 * 1024,
+      'used': 93 * 1024 * 1024 * 1024,
+    };
   }
 }
