@@ -17,17 +17,10 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => const _HomeScreenBody();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenBody extends StatefulWidget {
-  const _HomeScreenBody();
-
-  @override
-  State<_HomeScreenBody> createState() => _HomeScreenBodyState();
-}
-
-class _HomeScreenBodyState extends State<_HomeScreenBody> {
+class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   final _screens = const [
@@ -43,13 +36,12 @@ class _HomeScreenBodyState extends State<_HomeScreenBody> {
 
   @override
   Widget build(BuildContext context) {
-    // 🛠️ ట్యాబ్ నావిగేషన్ బ్యాక్-ప్రెస్ ఫిక్స్ ఇక్కడ చేసాం PopScope ద్వారా
     return PopScope(
-      canPop: _selectedIndex == 0, // హోమ్ ట్యాబ్ లో ఉంటేనే బయటికి వెళ్తుంది
+      canPop: _selectedIndex == 0,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         if (_selectedIndex != 0) {
-          setState(() => _selectedIndex = 0); // వేరే ట్యాబ్ లో ఉంటే హోమ్ ట్యాబ్ కి తెస్తుంది
+          setState(() => _selectedIndex = 0);
         }
       },
       child: Scaffold(
@@ -86,7 +78,7 @@ class _HomeTabState extends State<_HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    final parentState = context.findAncestorStateOfType<_HomeScreenBodyState>();
+    final parentState = context.findAncestorStateOfType<_HomeScreenState>();
 
     return CustomScrollView(
       slivers: [
@@ -197,37 +189,39 @@ class _HomeTabState extends State<_HomeTab> {
               ),
               const SizedBox(height: 12),
 
-              SizedBox(
-                height: 90,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  children: [
-                    _Category('Images', Icons.image_rounded, AppTheme.primaryColor, () {
-                      parentState?.setTab(1);
-                      context.read<FileService>().loadFiles('/storage/emulated/0/DCIM');
-                    }),
-                    const SizedBox(width: 12),
-                    _Category('Videos', Icons.videocam_rounded, const Color(0xFFFF6B6B), () {
-                      parentState?.setTab(1);
-                      context.read<FileService>().loadFiles('/storage/emulated/0/Movies');
-                    }),
-                    const SizedBox(width: 12),
-                    _Category('Music', Icons.music_note_rounded, const Color(0xFF4ECDC4), () {
-                      parentState?.setTab(1);
-                      context.read<FileService>().loadFiles('/storage/emulated/0/Music');
-                    }),
-                    const SizedBox(width: 12),
-                    _Category('Docs', Icons.description_rounded, const Color(0xFFFFD700), () {
-                      parentState?.setTab(1);
-                      context.read<FileService>().loadFiles('/storage/emulated/0/Documents');
-                    }),
-                    const SizedBox(width: 12),
-                    _Category('Downloads', Icons.download_rounded, const Color(0xFF8B5CF6), () {
-                      parentState?.setTab(1);
-                      context.read<FileService>().loadFiles('/storage/emulated/0/Download');
-                    }),
-                  ],
+              SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 90,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    children: [
+                      _Category('Images', Icons.image_rounded, AppTheme.primaryColor, () {
+                        parentState?.setTab(1);
+                        context.read<FileService>().loadFiles('/storage/emulated/0/DCIM');
+                      }),
+                      const SizedBox(width: 12),
+                      _Category('Videos', Icons.videocam_rounded, const Color(0xFFFF6B6B), () {
+                        parentState?.setTab(1);
+                        context.read<FileService>().loadFiles('/storage/emulated/0/Movies');
+                      }),
+                      const SizedBox(width: 12),
+                      _Category('Music', Icons.music_note_rounded, const Color(0xFF4ECDC4), () {
+                        parentState?.setTab(1);
+                        context.read<FileService>().loadFiles('/storage/emulated/0/Music');
+                      }),
+                      const SizedBox(width: 12),
+                      _Category('Docs', Icons.description_rounded, const Color(0xFFFFD700), () {
+                        parentState?.setTab(1);
+                        context.read<FileService>().loadFiles('/storage/emulated/0/Documents');
+                      }),
+                      const SizedBox(width: 12),
+                      _Category('Downloads', Icons.download_rounded, const Color(0xFF8B5CF6), () {
+                        parentState?.setTab(1);
+                        context.read<FileService>().loadFiles('/storage/emulated/0/Download');
+                      }),
+                    ],
+                  ),
                 ),
               ),
 
@@ -360,7 +354,7 @@ class FileSearchDelegate extends SearchDelegate {
   Widget? buildLeading(BuildContext context) => IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => close(context, null));
 
   @override
-  Widget buildFocusTransitions(BuildContext context, Animation<double> animation) => FadeTransition(opacity: animation, child: buildResults(context));
+  Widget buildSuggestions(BuildContext context) => Container();
 
   @override
   Widget buildResults(BuildContext context) {
@@ -381,7 +375,4 @@ class FileSearchDelegate extends SearchDelegate {
       },
     );
   }
-
-  @override
-  Widget buildSuggestions(BuildContext context) => Container();
 }
