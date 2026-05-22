@@ -10,7 +10,7 @@ class FileService extends ChangeNotifier {
   List<FileModel> _recentFiles = [];
   List<String> _favorites = [];
   List<FileModel> _recycleBin = [];
-  String _currentPath = '/storage/emulated/0'; // Default root path
+  String _currentPath = '/storage/emulated/0';
   bool _isLoading = false;
   String? _error;
 
@@ -21,9 +21,10 @@ class FileService extends ChangeNotifier {
   String get currentPath => _currentPath;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  bool get canGoBack => _currentPath != '/storage/emulated/0';
+  
+  bool get canGoBack => _currentPath != '/storage/emulated/0' && _currentPath != '/';
 
-  // ─── 1. ఫోల్డర్స్ & ఫైల్స్ రెండింటినీ లోడ్ చేసే పక్కా లాజిక్ ───
+  // ─── ఫోల్డర్స్ మరియు ఫైల్స్ లోడింగ్ లాజిక్ ───
   Future<void> loadFiles(String path) async {
     _isLoading = true;
     _error = null;
@@ -48,7 +49,6 @@ class FileService extends ChangeNotifier {
           final stat = entity.statSync();
           final name = entity.uri.pathSegments.where((s) => s.isNotEmpty).last;
 
-          // దాచిన ఫైల్స్ (.thumbnails లాంటివి) స్కిప్ చేయడానికి
           if (name.startsWith('.')) continue;
 
           filesList.add(FileModel(
@@ -56,14 +56,14 @@ class FileService extends ChangeNotifier {
             name: name,
             size: isDirectory ? 0 : stat.size,
             lastModified: stat.modified,
-            category: isDirectory ? FileCategory.other : FileModel.detectCategory(entity.path),
+            // 🛠️ మోడల్ లోని ఒరిజినల్ ఫంక్షన్ ని ఇక్కడ పక్కాగా లింక్ చేసాం
+            category: isDirectory ? FileCategory.other : FileModel.fromFile(File(entity.path)).category,
             isSelected: false,
             isFavorite: _favorites.contains(entity.path),
           ));
         } catch (_) {}
       }
 
-      // ఫోల్డర్స్ ఫస్ట్ వచ్చేలా, ఆ తర్వాత ఫైల్స్ పేరు బట్టి సార్ట్ చేస్తాం
       filesList.sort((a, b) {
         final aIsDir = Directory(a.path).existsSync();
         final bIsDir = Directory(b.path).existsSync();
@@ -74,14 +74,14 @@ class FileService extends ChangeNotifier {
 
       _currentFiles = filesList;
       
-      // రీసెంట్ ఫైల్స్ అప్‌డేట్
       final onlyFiles = filesList.where((f) => !Directory(f.path).existsSync()).toList();
       if (onlyFiles.isNotEmpty) {
-        _recentFiles = (List<FileModel>.from(onlyFiles)..sort((a, b) => b.lastModified.compareTo(a.lastModified))).take(20).toList();
+        _recentFiles = (List<FileModel>.from(onlyFiles)
+          ..sort((a, b) => b.lastModified.compareTo(a.lastModified))).take(20).toList();
       }
 
     } catch (e) {
-      _error = 'Access Denied';
+      _error = 'Cannot access directory';
     }
 
     _isLoading = false;
@@ -91,7 +91,7 @@ class FileService extends ChangeNotifier {
   Future<void> loadRootDirectory() async {
     final hasPermission = await requestStoragePermission();
     if (!hasPermission) {
-      _error = 'Permission Required';
+      _error = 'Storage permission required';
       notifyListeners();
       return;
     }
@@ -107,7 +107,7 @@ class FileService extends ChangeNotifier {
     return true;
   }
 
-  // ─── 5. సెర్చ్ ఫంక్షనాలిటీ (పనిచేసేలా ఫిక్స్) ───
+  // ─── ఫుల్ సెర్చ్ లాజిక్ ───
   Future<List<FileModel>> searchFiles(String query) async {
     if (query.isEmpty) return [];
     final results = <FileModel>[];
@@ -128,7 +128,7 @@ class FileService extends ChangeNotifier {
     return results;
   }
 
-  // ─── క్విక్ యాక్షన్స్ సపోర్టెడ్ ఫిల్టర్స్ ───
+  // ─── వాట్సాప్ మీడియా ───
   Future<List<FileModel>> getWhatsAppMedia() async {
     final files = <FileModel>[];
     final waPath = Directory('/storage/emulated/0/Android/media/com.whatsapp/WhatsApp/Media');
@@ -143,15 +143,20 @@ class FileService extends ChangeNotifier {
     return files;
   }
 
+  // ─── APK మేనేజర్ ───
   Future<List<FileModel>> getApkFiles() async {
     final files = <FileModel>[];
-    final dir = Directory('/storage/emulated/0');
-    try {
-      final entities = await dir.list(recursive: true).toList();
-      for (final e in entities) {
-        if (e is File && e.path.endsWith('.apk')) files.add(FileModel.fromFile(e));
-      }
-    } catch (_) {}
+    final targetDirs = ['Download', 'DCIM', 'Documents'];
+    for (final f in targetDirs) {
+      final dir = Directory('/storage/emulated/0/$f');
+      if (!await dir.exists()) continue;
+      try {
+        final entities = await dir.list(recursive: true).toList();
+        for (final e in entities) {
+          if (e is File && e.path.endsWith('.apk')) files.add(FileModel.fromFile(e));
+        }
+      } catch (_) {}
+    }
     return files;
   }
 
