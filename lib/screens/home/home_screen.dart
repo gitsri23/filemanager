@@ -17,10 +17,17 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  Widget build(BuildContext context) => const _HomeScreenBody();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenBody extends StatefulWidget {
+  const _HomeScreenBody();
+
+  @override
+  State<_HomeScreenBody> createState() => _HomeScreenBodyState();
+}
+
+class _HomeScreenBodyState extends State<_HomeScreenBody> {
   int _selectedIndex = 0;
 
   final _screens = const [
@@ -36,15 +43,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.amoledBlack,
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: GlassNavBar(
-        selectedIndex: _selectedIndex,
-        onItemSelected: (index) => setState(() => _selectedIndex = index),
+    // 🛠️ ట్యాబ్ నావిగేషన్ బ్యాక్-ప్రెస్ ఫిక్స్ ఇక్కడ చేసాం PopScope ద్వారా
+    return PopScope(
+      canPop: _selectedIndex == 0, // హోమ్ ట్యాబ్ లో ఉంటేనే బయటికి వెళ్తుంది
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_selectedIndex != 0) {
+          setState(() => _selectedIndex = 0); // వేరే ట్యాబ్ లో ఉంటే హోమ్ ట్యాబ్ కి తెస్తుంది
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppTheme.amoledBlack,
+        body: IndexedStack(
+          index: _selectedIndex,
+          children: _screens,
+        ),
+        bottomNavigationBar: GlassNavBar(
+          selectedIndex: _selectedIndex,
+          onItemSelected: (index) => setState(() => _selectedIndex = index),
+        ),
       ),
     );
   }
@@ -69,7 +86,7 @@ class _HomeTabState extends State<_HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    final parentState = context.findAncestorStateOfType<_HomeScreenState>();
+    final parentState = context.findAncestorStateOfType<_HomeScreenBodyState>();
 
     return CustomScrollView(
       slivers: [
@@ -340,7 +357,6 @@ class FileSearchDelegate extends SearchDelegate {
   List<Widget>? buildActions(BuildContext context) => [IconButton(icon: const Icon(Icons.clear, color: Colors.white), onPressed: () => query = '')];
 
   @override
-  // 🛠️ బ్రాకెట్స్ తీసేసి కరెక్ట్ సింగిల్ Widget కింద ఫిక్స్ చేసాం
   Widget? buildLeading(BuildContext context) => IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => close(context, null));
 
   @override
