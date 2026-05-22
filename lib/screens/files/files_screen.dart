@@ -28,12 +28,12 @@ class _FilesScreenState extends State<FilesScreen> {
     final fileService = context.watch<FileService>();
 
     return PopScope(
-      canPop: !fileService.canGoBack,
+      canPop: !fileService.canGoBack, // 🛠️ రూట్ లో లేనంత సేపు యాప్ క్లోజ్ అవ్వదు, వెనక్కి మాత్రమే వస్తుంది
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         if (fileService.canGoBack) {
           final parentPath = Directory(fileService.currentPath).parent.path;
-          await fileService.loadFiles(parentPath);
+          await fileService.loadFiles(parentPath); // ప్రాపర్ స్టెప్ బై స్టెప్ బ్యాక్ నావిగేషన్
         }
       },
       child: Scaffold(
@@ -43,7 +43,7 @@ class _FilesScreenState extends State<FilesScreen> {
           elevation: 0,
           leading: fileService.canGoBack 
               ? IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
                   onPressed: () async {
                     final parentPath = Directory(fileService.currentPath).parent.path;
                     await fileService.loadFiles(parentPath);
@@ -72,7 +72,7 @@ class _FilesScreenState extends State<FilesScreen> {
                         leading: Icon(
                           isDir ? Icons.folder_rounded : Icons.insert_drive_file_rounded,
                           color: isDir ? Colors.amber : AppTheme.primaryColor,
-                          size: 28,
+                          size: 26,
                         ),
                         title: Text(
                           item.name,
@@ -82,8 +82,8 @@ class _FilesScreenState extends State<FilesScreen> {
                         ),
                         subtitle: isDir 
                             ? null 
-                            : Text(item.formattedSize, style: const TextStyle(color: Colors.white38, fontSize: 12)),
-                        trailing: const Icon(Icons.more_vert_rounded, color: Colors.white24, size: 18),
+                            : Text(item.formattedSize, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                        trailing: const Icon(Icons.more_vert_rounded, color: Colors.white24, size: 16),
                         onTap: () async {
                           if (isDir) {
                             await fileService.loadFiles(item.path);
@@ -119,7 +119,6 @@ class _FilesScreenState extends State<FilesScreen> {
               if (!isDir)
                 ListTile(
                   leading: const Icon(Icons.share_rounded, color: AppTheme.successColor),
-                  // 🛠️ ఇక్కడ 'whitee' ని 'white' గా ఫిక్స్ చేశాం!
                   title: const Text('Share File', style: TextStyle(color: Colors.white)),
                   onTap: () {
                     Navigator.pop(context);
