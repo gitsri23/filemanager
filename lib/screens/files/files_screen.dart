@@ -88,12 +88,10 @@ class _FilesScreenState extends State<FilesScreen> {
                           if (isDir) {
                             await fileService.loadFiles(item.path);
                           } else {
-                            // 🛠️ ఫైల్ ని క్లిక్ చేస్తే ఓపెన్ చేసే పక్కా సిస్టమ్
                             await OpenFile.open(item.path);
                           }
                         },
                         onLongPress: () {
-                          // 🛠️ లాంగ్ ప్రెస్ ఆప్షన్స్ మెనూ (Delete, Share, Info)
                           _showActionMenu(context, item, isDir);
                         },
                       );
@@ -121,7 +119,8 @@ class _FilesScreenState extends State<FilesScreen> {
               if (!isDir)
                 ListTile(
                   leading: const Icon(Icons.share_rounded, color: AppTheme.successColor),
-                  title: const Text('Share File', style: TextStyle(color: Colors.whitee)),
+                  // 🛠️ ఇక్కడ 'whitee' ని 'white' గా ఫిక్స్ చేశాం!
+                  title: const Text('Share File', style: TextStyle(color: Colors.white)),
                   onTap: () {
                     Navigator.pop(context);
                     Share.shareXFiles([XFile(item.path)]);
