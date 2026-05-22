@@ -1,59 +1,97 @@
-name: Build CleanVault APK
+Name: One File Manager Build
 
 on:
   push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: zulu
+          java-version: 17
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
-          channel: 'stable'
-          cache: true
+          flutter-version: 3.24.0
+          channel: stable
 
-      - name: Get dependencies
+      - name: Recreate Android Project
+        run: |
+          rm -rf android
+          flutter create . \
+            --project-name one_file_manager \
+            --org one.filemanager \
+            --platforms=android
+          rm -rf test
+
+      - name: Fix Android Build Configs (Kotlin, AGP, Gradle, SDK 35)
+        run: |
+          sed -i 's/id "org.jetbrains.kotlin.android" version .*/id "org.jetbrains.kotlin.android" version "1.9.24" apply false/g' android/settings.gradle
+          sed -i 's/id "com.android.application" version .*/id "com.android.application" version "8.5.0" apply false/g' android/settings.gradle
+          sed -i 's/gradle-[0-9\.]*-all\.zip/gradle-8.7-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
+          
+          # compileSdk మరియు targetSdk రెండింటినీ 35 కి మార్చే లైన్స్
+          sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 35/g' android/app/build.gradle
+          sed -i 's/compileSdk flutter.compileSdkVersion/compileSdk 35/g' android/app/build.gradle
+          sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 35/g' android/app/build.gradle
+          sed -i 's/targetSdk flutter.targetSdkVersion/targetSdk 35/g' android/app/build.gradle
+          
+          # ప్యాకేజీ ఐడీ మరియు లాంచ్ పాత్ ఫిక్సెస్
+          sed -i 's/applicationId .*/applicationId "one.filemanager.android"/g' android/app/build.gradle
+          sed -i 's/namespace .*/namespace "one.filemanager.android"/g' android/app/build.gradle
+          sed -i 's/android:name=".MainActivity"/android:name="one.filemanager.one_file_manager.MainActivity"/g' android/app/src/main/AndroidManifest.xml
+
+      - name: Add Permissions & Production AdMob Config
+        run: |
+          sed -i '/<manifest/a \
+              <uses-permission android:name="android.permission.INTERNET"/>\
+              <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\
+              <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>\
+              <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>' \
+              android/app/src/main/AndroidManifest.xml
+
+          sed -i '/<\/application>/i \
+              <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-1485188761403654~1727113851"/>' \
+              android/app/src/main/AndroidManifest.xml
+
+      - name: Auto Fix Dependency Conflict
+        run: |
+          sed -i 's/disk_space_plus: ^4.0.0/disk_space_plus: ^0.2.4/g' pubspec.yaml
+          flutter pub add disk_space_plus:^0.2.4 --offline || true
+
+      - name: Install Dependencies
         run: flutter pub get
 
-      - name: Analyze code
-        run: flutter analyze --no-fatal-infos
-        continue-on-error: true
+      - name: Generate App Icons
+        run: dart run flutter_launcher_icons
 
-      - name: Build release APK
-        run: flutter build apk --release --split-per-abi
-        env:
-          ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
+      - name: Generate Splash Screen
+        run: dart run flutter_native_splash:create
 
-      - name: Upload APKs
-        uses: actions/upload-artifact@v4
-        with:
-          name: cleanvault-apks
-          path: |
-            build/app/outputs/apk/release/*.apk
-          retention-days: 30
-
-      - name: Build universal APK
+      - name: Build APK Only
         run: flutter build apk --release
 
-      - name: Upload universal APK
-        uses: actions/upload-artifact@v4
+      - name: Create GitHub Release & Upload APK
+        uses: softprops/action-gh-release@v2
         with:
-          name: cleanvault-universal
-          path: build/app/outputs/apk/release/app-release.apk
-          retention-days: 30
+          tag_name: v1.0.${{ github.run_number }}
+          name: One File Manager Build v1.0.${{ github.run_number }}
+          draft: false
+          prerelease: false
+          files: |
+            build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
