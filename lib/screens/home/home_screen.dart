@@ -1,170 +1,367 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../models/file_model.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
+import '../../core/ads/native_ad_widget.dart';
+import '../../core/theme/app_theme.dart';
+import '../../models/file_model.dart';
+import '../../services/file_service.dart';
+import '../../services/storage_service.dart';
+import '../../widgets/storage_card.dart';
+import '../../widgets/glass_navbar.dart';
+import '../files/files_screen.dart';
+import '../cleaner/cleaner_screen.dart';
+import '../settings/settings_screen.dart';
 
-class FileService extends ChangeNotifier {
-  List<FileModel> _currentFiles = [];
-  List<FileModel> _recentFiles = [];
-  List<String> _favorites = [];
-  List<FileModel> _recycleBin = [];
-  String _currentPath = '/storage/emulated/0'; // Default root path
-  bool _isLoading = false;
-  String? _error;
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
-  List<FileModel> get currentFiles => _currentFiles;
-  List<FileModel> get recentFiles => _recentFiles;
-  List<FileModel> get recycleBin => _recycleBin;
-  List<String> get favorites => _favorites;
-  String get currentPath => _currentPath;
-  bool get isLoading => _isLoading;
-  String? get error => _error;
-  bool get canGoBack => _currentPath != '/storage/emulated/0';
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
 
-  // ─── 1. ఫోల్డర్స్ & ఫైల్స్ రెండింటినీ లోడ్ చేసే పక్కా లాజిక్ ───
-  Future<void> loadFiles(String path) async {
-    _isLoading = true;
-    _error = null;
-    _currentPath = path;
-    notifyListeners();
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
 
-    try {
-      final dir = Directory(path);
-      if (!await dir.exists()) {
-        _error = 'Directory not found';
-        _isLoading = false;
-        notifyListeners();
-        return;
-      }
+  final _screens = const [
+    _HomeTab(),
+    FilesScreen(),
+    CleanerScreen(),
+    SettingsScreen(),
+  ];
 
-      final entities = await dir.list(followLinks: false).toList();
-      final filesList = <FileModel>[];
+  void setTab(int index) {
+    setState(() => _selectedIndex = index);
+  }
 
-      for (final entity in entities) {
-        try {
-          final isDirectory = entity is Directory;
-          final stat = entity.statSync();
-          final name = entity.uri.pathSegments.where((s) => s.isNotEmpty).last;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.amoledBlack,
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: GlassNavBar(
+        selectedIndex: _selectedIndex,
+        onItemSelected: (index) => setState(() => _selectedIndex = index),
+      ),
+    );
+  }
+}
 
-          // దాచిన ఫైల్స్ (.thumbnails లాంటివి) స్కిప్ చేయడానికి
-          if (name.startsWith('.')) continue;
+class _HomeTab extends StatefulWidget {
+  const _HomeTab();
 
-          filesList.add(FileModel(
-            path: entity.path,
-            name: name,
-            size: isDirectory ? 0 : stat.size,
-            lastModified: stat.modified,
-            category: isDirectory ? FileCategory.other : FileModel.detectCategory(entity.path),
-            isSelected: false,
-            isFavorite: _favorites.contains(entity.path),
-          ));
-        } catch (_) {}
-      }
+  @override
+  State<_HomeTab> createState() => _HomeTabState();
+}
 
-      // ఫోల్డర్స్ ఫస్ట్ వచ్చేలా, ఆ తర్వాత ఫైల్స్ పేరు బట్టి సార్ట్ చేస్తాం
-      filesList.sort((a, b) {
-        final aIsDir = Directory(a.path).existsSync();
-        final bIsDir = Directory(b.path).existsSync();
-        if (aIsDir && !bIsDir) return -1;
-        if (!aIsDir && bIsDir) return 1;
-        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      });
+class _HomeTabState extends State<_HomeTab> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<FileService>().loadRootDirectory();
+      context.read<StorageService>().analyzeStorage();
+    });
+  }
 
-      _currentFiles = filesList;
-      
-      // రీసెంట్ ఫైల్స్ అప్‌డేట్
-      final onlyFiles = filesList.where((f) => !Directory(f.path).existsSync()).toList();
-      if (onlyFiles.isNotEmpty) {
-        _recentFiles = (List<FileModel>.from(onlyFiles)..sort((a, b) => b.lastModified.compareTo(a.lastModified))).take(20).toList();
-      }
+  @override
+  Widget build(BuildContext context) {
+    final parentState = context.findAncestorStateOfType<_HomeScreenState>();
 
-    } catch (e) {
-      _error = 'Access Denied';
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          pinned: true,
+          backgroundColor: AppTheme.amoledBlack,
+          expandedHeight: 100,
+          flexibleSpace: FlexibleSpaceBar(
+            titlePadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.folder_special_rounded, size: 18, color: Colors.white),
+                ),
+                const SizedBox(width: 10),
+                const Text('CleanVault', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white)),
+              ],
+            ),
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.search_rounded, color: Colors.white70),
+              onPressed: () {
+                showSearch(context: context, delegate: FileSearchDelegate(context.read<FileService>()));
+              },
+            ),
+          ],
+        ),
+        SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: StorageCard(),
+              ).animate().slideY(begin: 0.2, end: 0, duration: 500.ms).fadeIn(),
+
+              const SizedBox(height: 24),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text('Quick Clean', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+              ),
+              const SizedBox(height: 12),
+              
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _QuickAction(
+                          label: 'Duplicates',
+                          icon: Icons.copy_all_rounded,
+                          gradient: AppTheme.warmGradient,
+                          onTap: () {
+                            parentState?.setTab(2);
+                            context.read<StorageService>().findDuplicates();
+                          },
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _QuickAction(
+                          label: 'Large Files',
+                          icon: Icons.data_usage_rounded,
+                          gradient: AppTheme.purpleGradient,
+                          onTap: () => parentState?.setTab(2),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: _QuickAction(
+                          label: 'WhatsApp',
+                          icon: Icons.chat_bubble_rounded,
+                          gradient: AppTheme.greenGradient,
+                          onTap: () => parentState?.setTab(2),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: _QuickAction(
+                        label: 'APK Files',
+                        icon: Icons.android_rounded,
+                        gradient: AppTheme.goldGradient,
+                        onTap: () => parentState?.setTab(2),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+              const NativeAdWidget(),
+              const SizedBox(height: 24),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text('Browse by Category', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+              ),
+              const SizedBox(height: 12),
+
+              SizedBox(
+                height: 90,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: [
+                    _Category('Images', Icons.image_rounded, AppTheme.primaryColor, () {
+                      parentState?.setTab(1);
+                      context.read<FileService>().loadFiles('/storage/emulated/0/DCIM');
+                    }),
+                    const SizedBox(width: 12),
+                    _Category('Videos', Icons.videocam_rounded, const Color(0xFFFF6B6B), () {
+                      parentState?.setTab(1);
+                      context.read<FileService>().loadFiles('/storage/emulated/0/Movies');
+                    }),
+                    const SizedBox(width: 12),
+                    _Category('Music', Icons.music_note_rounded, const Color(0xFF4ECDC4), () {
+                      parentState?.setTab(1);
+                      context.read<FileService>().loadFiles('/storage/emulated/0/Music');
+                    }),
+                    const SizedBox(width: 12),
+                    _Category('Docs', Icons.description_rounded, const Color(0xFFFFD700), () {
+                      parentState?.setTab(1);
+                      context.read<FileService>().loadFiles('/storage/emulated/0/Documents');
+                    }),
+                    const SizedBox(width: 12),
+                    _Category('Downloads', Icons.download_rounded, const Color(0xFF8B5CF6), () {
+                      parentState?.setTab(1);
+                      context.read<FileService>().loadFiles('/storage/emulated/0/Download');
+                    }),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text('Recent Files', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white)),
+              ),
+              const SizedBox(height: 8),
+              const _RecentFilesSection(),
+              const SizedBox(height: 100),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Gradient gradient;
+  final VoidCallback onTap;
+  const _QuickAction({required this.label, required this.icon, required this.gradient, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 80,
+        decoration: BoxDecoration(gradient: gradient, borderRadius: BorderRadius.circular(16)),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 24),
+            const SizedBox(height: 4),
+            Text(label, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Category extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  const _Category(this.label, this.icon, this.color, this.onTap);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 70,
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(16), border: Border.all(color: color.withOpacity(0.3), width: 1)),
+              child: Icon(icon, color: color, size: 26),
+            ),
+            const SizedBox(height: 6),
+            Text(label, style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RecentFilesSection extends StatelessWidget {
+  const _RecentFilesSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final files = context.watch<FileService>().recentFiles;
+    if (files.isEmpty) {
+      return const Padding(padding: EdgeInsets.all(24), child: Center(child: Text('No recent files loaded', style: TextStyle(color: Colors.white38))));
     }
+    return SizedBox(
+      height: 100,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: files.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final file = files[index];
+          return Container(
+            width: 100,
+            decoration: BoxDecoration(color: AppTheme.cardDark, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withOpacity(0.06), width: 1)),
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Icon(Icons.insert_drive_file_rounded, color: AppTheme.primaryColor, size: 24),
+                Text(file.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
 
-    _isLoading = false;
-    notifyListeners();
+class FileSearchDelegate extends SearchDelegate {
+  final FileService fileService;
+  FileSearchDelegate(this.fileService);
+
+  @override
+  ThemeData appBarTheme(BuildContext context) => ThemeData(
+        scaffoldBackgroundColor: AppTheme.amoledBlack,
+        inputDecorationTheme: const InputDecorationTheme(hintStyle: TextStyle(color: Colors.white38)),
+        appBarTheme: const AppBarTheme(backgroundColor: AppTheme.amoledBlack),
+        textTheme: const TextTheme(titleLarge: TextStyle(color: Colors.white, fontSize: 16)),
+      );
+
+  @override
+  List<Widget>? buildActions(BuildContext context) => [IconButton(icon: const Icon(Icons.clear, color: Colors.white), onPressed: () => query = '')];
+
+  @override
+  Widget? buildLeading(BuildContext context) => [IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => close(context, null))];
+
+  @override
+  Widget buildResults(BuildContext context) {
+    return FutureBuilder<List<FileModel>>(
+      future: fileService.searchFiles(query),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final results = snapshot.data!;
+        if (results.isEmpty) return const Center(child: Text('No matching files found.', style: TextStyle(color: Colors.white38)));
+        return ListView.builder(
+          itemCount: results.length,
+          itemBuilder: (context, i) => ListTile(
+            leading: const Icon(Icons.insert_drive_file, color: AppTheme.primaryColor),
+            title: Text(results[i].name, style: const TextStyle(color: Colors.white, fontSize: 14)),
+            subtitle: Text(results[i].formattedSize, style: const TextStyle(color: Colors.white38)),
+          ),
+        );
+      },
+    );
   }
 
-  Future<void> loadRootDirectory() async {
-    final hasPermission = await requestStoragePermission();
-    if (!hasPermission) {
-      _error = 'Permission Required';
-      notifyListeners();
-      return;
-    }
-    await loadFiles('/storage/emulated/0');
-  }
-
-  Future<bool> requestStoragePermission() async {
-    if (Platform.isAndroid) {
-      if (await Permission.manageExternalStorage.request().isGranted) return true;
-      if (await Permission.storage.request().isGranted) return true;
-      return false;
-    }
-    return true;
-  }
-
-  // ─── 5. సెర్చ్ ఫంక్షనాలిటీ (పనిచేసేలా ఫిక్స్) ───
-  Future<List<FileModel>> searchFiles(String query) async {
-    if (query.isEmpty) return [];
-    final results = <FileModel>[];
-    final targetDirs = ['Download', 'DCIM', 'Pictures', 'Movies', 'Documents'];
-
-    for (final folder in targetDirs) {
-      final dir = Directory('/storage/emulated/0/$folder');
-      if (!await dir.exists()) continue;
-      try {
-        final entities = await dir.list(recursive: true, followLinks: false).toList();
-        for (final entity in entities) {
-          if (entity is File && entity.uri.pathSegments.last.toLowerCase().contains(query.toLowerCase())) {
-            results.add(FileModel.fromFile(entity));
-          }
-        }
-      } catch (_) {}
-    }
-    return results;
-  }
-
-  // ─── క్విక్ యాక్షన్స్ సపోర్టెడ్ ఫిల్టర్స్ ───
-  Future<List<FileModel>> getWhatsAppMedia() async {
-    final files = <FileModel>[];
-    final waPath = Directory('/storage/emulated/0/Android/media/com.whatsapp/WhatsApp/Media');
-    if (await waPath.exists()) {
-      try {
-        final entities = await waPath.list(recursive: true).toList();
-        for (final e in entities) {
-          if (e is File) files.add(FileModel.fromFile(e));
-        }
-      } catch (_) {}
-    }
-    return files;
-  }
-
-  Future<List<FileModel>> getApkFiles() async {
-    final files = <FileModel>[];
-    final dir = Directory('/storage/emulated/0');
-    try {
-      final entities = await dir.list(recursive: true).toList();
-      for (final e in entities) {
-        if (e is File && e.path.endsWith('.apk')) files.add(FileModel.fromFile(e));
-      }
-    } catch (_) {}
-    return files;
-  }
-
-  Future<bool> deleteFile(String path) async {
-    try {
-      final file = File(path);
-      if (await file.exists()) {
-        await file.delete();
-        _currentFiles.removeWhere((f) => f.path == path);
-        notifyListeners();
-        return true;
-      }
-    } catch (_) {}
-    return false;
-  }
+  @override
+  Widget buildSuggestions(BuildContext context) => Container();
 }
