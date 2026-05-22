@@ -26,6 +26,20 @@ class FileService extends ChangeNotifier {
   String? get error => _error;
   bool get canGoBack => _currentPath != _getRootPath();
 
+  // ─── 🛠️ Static Size Formatter Utility Fix ───────────────────────────────
+  // Mee screens lo 'FileModel._formatSize' call valla vachina error ని ఇది బైపాస్ చేస్తుంది.
+  static String formatSize(int bytes) {
+    if (bytes <= 0) return "0 B";
+    const suffixes = ["B", "KB", "MB", "GB", "TB"];
+    var i = 0;
+    double wSize = bytes.toDouble();
+    while (wSize >= 1024 && i < suffixes.length - 1) {
+      wSize /= 1024;
+      i++;
+    }
+    return "${wSize.toStringAsFixed(1)} ${suffixes[i]}";
+  }
+
   // ─── Permissions ─────────────────────────────────────────────────────────
 
   Future<bool> requestStoragePermission() async {
@@ -43,7 +57,6 @@ class FileService extends ChangeNotifier {
   }
 
   Future<int> _getAndroidSdkInt() async {
-    // Read from system properties via dart:io
     try {
       final result = await Process.run('getprop', ['ro.build.version.sdk']);
       return int.tryParse(result.stdout.toString().trim()) ?? 0;
