@@ -1,0 +1,54 @@
+name: cleanvault
+description: CleanVault - Professional File Manager & Storage Cleaner
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Ads
+  google_mobile_ads: ^5.1.0
+
+  # File system
+  path_provider: ^2.1.2
+  permission_handler: ^11.3.0
+  open_file: ^3.3.2
+  share_plus: ^9.0.0
+  mime: ^1.0.4
+
+  # Media
+  video_thumbnail: ^0.5.3
+  photo_manager: ^3.3.0
+
+  # Storage
+  disk_space_plus: ^4.0.0
+
+  # UI
+  flutter_animate: ^4.5.0
+  shimmer: ^3.0.0
+  cached_network_image: ^3.3.1
+  lottie: ^3.1.0
+  fl_chart: ^0.68.0
+
+  # Utils
+  intl: ^0.19.0
+  crypto: ^3.0.3
+  shared_preferences: ^2.2.2
+  get_it: ^7.6.7
+  provider: ^6.1.2
+  collection: ^1.18.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/lottie/
+    - assets/images/
