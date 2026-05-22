@@ -1,5 +1,5 @@
-name: cleanvault
-description: CleanVault - Professional File Manager & Storage Cleaner
+name: filemanager
+description: filemanager - Professional File Manager & Storage Cleaner
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -41,6 +41,7 @@ dependencies:
   get_it: ^7.6.7
   provider: ^6.1.2
   collection: ^1.18.0
+  url_launcher: ^6.3.0
 
 dev_dependencies:
   flutter_test:
