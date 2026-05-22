@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:open_file/open_file.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/theme/app_theme.dart';
 import '../../services/file_service.dart';
 import '../../models/file_model.dart';
@@ -81,15 +83,96 @@ class _FilesScreenState extends State<FilesScreen> {
                         subtitle: isDir 
                             ? null 
                             : Text(item.formattedSize, style: const TextStyle(color: Colors.white38, fontSize: 12)),
-                        trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white10),
+                        trailing: const Icon(Icons.more_vert_rounded, color: Colors.white24, size: 18),
                         onTap: () async {
                           if (isDir) {
                             await fileService.loadFiles(item.path);
+                          } else {
+                            // 🛠️ ఫైల్ ని క్లిక్ చేస్తే ఓపెన్ చేసే పక్కా సిస్టమ్
+                            await OpenFile.open(item.path);
                           }
+                        },
+                        onLongPress: () {
+                          // 🛠️ లాంగ్ ప్రెస్ ఆప్షన్స్ మెనూ (Delete, Share, Info)
+                          _showActionMenu(context, item, isDir);
                         },
                       );
                     },
                   ),
+      ),
+    );
+  }
+
+  void _showActionMenu(BuildContext context, FileModel item, bool isDir) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceDark,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
+              ),
+              const Divider(color: Colors.white10, height: 1),
+              if (!isDir)
+                ListTile(
+                  leading: const Icon(Icons.share_rounded, color: AppTheme.successColor),
+                  title: const Text('Share File', style: TextStyle(color: Colors.whitee)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Share.shareXFiles([XFile(item.path)]);
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.info_outline_rounded, color: AppTheme.accentColor),
+                title: const Text('Details Info', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showDetailsDialog(context, item, isDir);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline_rounded, color: AppTheme.warningColor),
+                title: const Text('Delete Permanently', style: TextStyle(color: Colors.white)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final success = await context.read<FileService>().deleteFile(item.path);
+                  if (success && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('File deleted successfully')));
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDetailsDialog(BuildContext context, FileModel item, bool isDir) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardDark,
+        title: const Text('File Information', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Name: ${item.name}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+            const SizedBox(height: 8),
+            Text('Path: ${item.path}', style: const TextStyle(color: Colors.white38, fontSize: 11)),
+            const SizedBox(height: 8),
+            if (!isDir) Text('Size: ${item.formattedSize}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+            const SizedBox(height: 8),
+            Text('Modified: ${item.formattedDate}', style: const TextStyle(color: Colors.white60, fontSize: 13)),
+          ],
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
       ),
     );
   }
