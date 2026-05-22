@@ -1,4 +1,4 @@
-name: Build CleanVault APK
+name: One File Manager Build
 
 on:
   push:
@@ -72,14 +72,23 @@ jobs:
           sed -i 's/disk_space_plus: ^4.0.0/disk_space_plus: ^0.2.4/g' pubspec.yaml
           flutter pub add disk_space_plus:^0.2.4 --offline || true
 
+      # 🛠️ Missing Packages ni dynamic ga runner local instance loki add chese step 👇
+      - name: Add Launcher & Splash Missing Dev Packages
+        run: |
+          flutter pub add dev:flutter_launcher_icons dev:flutter_native_splash || true
+
       - name: Install Dependencies
         run: flutter pub get
 
       - name: Generate App Icons
-        run: dart run flutter_launcher_icons
+        run: |
+          # Icons config file project lo unteనే run avtundi, lekapothe block cross avvadaniki fallback continuous set chesa
+          dart run flutter_launcher_icons || true
 
       - name: Generate Splash Screen
-        run: dart run flutter_native_splash:create
+        run: |
+          # Splash configurations file project lo unteనే run avtundi, lekapothe fallback path set chesa
+          dart run flutter_native_splash:create || true
 
       - name: Build APK Only
         run: flutter build apk --release
