@@ -43,13 +43,13 @@ jobs:
           sed -i 's/id "com.android.application" version .*/id "com.android.application" version "8.5.0" apply false/g' android/settings.gradle
           sed -i 's/gradle-[0-9\.]*-all\.zip/gradle-8.7-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
           
-          # compileSdk మరియు targetSdk రెండింటినీ 36 కి మారుస్తున్నాం
+          # compileSdk మరియు targetSdk రెండింటినీ 36 కి మారుస్తున్నాం (photo_manager రిక్వైర్మెంట్ కోసం)
           sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle
           sed -i 's/compileSdk flutter.compileSdkVersion/compileSdk 36/g' android/app/build.gradle
           sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle
           sed -i 's/targetSdk flutter.targetSdkVersion/targetSdk 36/g' android/app/build.gradle
           
-          # NDK Version Fix
+          # NDK Version Fix (Plugins requirements క్రాష్ అవ్వకుండా)
           sed -i '/defaultConfig {/i \    ndkVersion = "26.1.10909125"' android/app/build.gradle
           
           # ప్యాకేజీ ఐడీ మరియు లాంచ్ పాత్ ఫిక్సెస్
@@ -59,11 +59,13 @@ jobs:
 
       - name: Add Permissions & Production AdMob Config
         run: |
+          # 🛠️ ఇంటర్నెట్, స్టోరేజ్ పర్మిషన్స్ తో పాటు ప్రైవసీ పాలసీ లింక్ బ్రౌజర్ లో ఓపెన్ అవ్వడానికి <queries> ట్యాగ్ యాడ్ చేసాం
           sed -i '/<manifest/a \
               <uses-permission android:name="android.permission.INTERNET"/>\
               <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>\
               <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>\
-              <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>' \
+              <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>\
+              <queries><intent><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="https"/></intent></queries>' \
               android/app/src/main/AndroidManifest.xml
 
           sed -i '/<\/application>/i \
@@ -82,7 +84,7 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      # ─── 🛠️ కంపైలేషన్ క్రాష్ అవ్వకుండా పైప్‌లైన్ ఆటో-ప్యాచ్ స్టెప్ ───
+      # ─── 🛠️ కంపైలేషన్ ఎర్రర్స్ రాకుండా ఆటో-ప్యాచ్ స్టెప్ ───
       - name: Patch Dart Code Syntax Errors
         run: |
           # CardThemeData ని కరెక్ట్ CardTheme గా మారుస్తుంది
@@ -91,9 +93,15 @@ jobs:
           # SplashScreen లో పాత లోడ్ ఫేవరెట్స్ కాల్ ని సేఫ్ గా బైపాస్ చేస్తుంది ఎర్రర్ రాకుండా
           sed -i 's/await fileService.loadFavorites();/\/\/ bypassed/g' lib/screens/splash/splash_screen.dart || true
           
-          # క్లీనర్ స్క్రీన్ లో పబ్లిక్ FileModel.formatSize పద్ధతిని ఇంజెక్ట్ చేస్తుంది
+          # FileService ఇంపోర్ట్ లైన్ ని స్క్రీన్స్ టాప్ లో ఇంజెక్ట్ చేస్తుంది
+          sed -i '1i import "../../services/file_service.dart";' lib/screens/cleaner/cleaner_screen.dart || true
+          sed -i '1i import "../../services/file_service.dart";' lib/screens/files/files_screen.dart || true
+          
+          # క్లీనర్ మరియు ఫైల్ స్క్రీన్స్ లో పబ్లిక్ formatSize పద్ధతిని ఇంజెక్ట్ చేస్తుంది
           sed -i 's/FileService.formatSize/FileModel.formatSize/g' lib/screens/cleaner/cleaner_screen.dart || true
           sed -i 's/FileModel._formatSize/FileModel.formatSize/g' lib/screens/cleaner/cleaner_screen.dart || true
+          sed -i 's/FileService.formatSize/FileModel.formatSize/g' lib/screens/files/files_screen.dart || true
+          sed -i 's/FileModel._formatSize/FileModel.formatSize/g' lib/screens/files/files_screen.dart || true
 
       - name: Generate App Icons
         run: dart run flutter_launcher_icons || true
