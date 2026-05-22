@@ -1,0 +1,59 @@
+name: Build CleanVault APK
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Analyze code
+        run: flutter analyze --no-fatal-infos
+        continue-on-error: true
+
+      - name: Build release APK
+        run: flutter build apk --release --split-per-abi
+        env:
+          ADMOB_APP_ID: ${{ secrets.ADMOB_APP_ID }}
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleanvault-apks
+          path: |
+            build/app/outputs/apk/release/*.apk
+          retention-days: 30
+
+      - name: Build universal APK
+        run: flutter build apk --release
+
+      - name: Upload universal APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: cleanvault-universal
+          path: build/app/outputs/apk/release/app-release.apk
+          retention-days: 30
