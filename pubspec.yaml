@@ -47,9 +47,30 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  # 🛠️ గిట్‌హబ్ బిల్డ్ రన్నర్ కోసం లాంచర్ ఐకాన్స్ & స్ప్లాష్ స్క్రీన్ ప్యాకేజీలను ఇక్కడ యాడ్ చేసాం
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.4
+
+# ─── 🛠️ App Icons Generator Config ───
+flutter_launcher_icons:
+  android: "launcher_icon"
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21
+
+# ─── 🛠️ Splash Screen Generator Config ───
+flutter_native_splash:
+  color: "#000000" # AMOLED Black బ్యాక్‌గ్రౌండ్ కలర్
+  image: "assets/splash/splash_logo.png"
+  android_12:
+    image: "assets/splash/splash_logo.png"
+    color: "#000000"
 
 flutter:
   uses-material-design: true
+  
+  # ─── 🛠️ అసెట్స్ ఫోల్డర్స్ మ్యాపింగ్ ───
   assets:
     - assets/lottie/
     - assets/images/
+    - assets/icon/       # మీ ఐకాన్ ఇమేజ్ ఉండే ఫోల్డర్ 
+    - assets/splash/     # మీ స్ప్లాష్ లోగో ఉండే ఫోల్డర్
