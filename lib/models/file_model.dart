@@ -65,14 +65,15 @@ class FileModel {
     return FileCategory.other;
   }
 
-  String get formattedSize => _formatSize(size);
+  String get formattedSize => formatSize(size);
   String get formattedDate =>
       DateFormat('MMM dd, yyyy').format(lastModified);
   String get extension => name.contains('.')
       ? name.split('.').last.toUpperCase()
       : 'FILE';
 
-  static String _formatSize(int bytes) {
+  // 🛠️ ప్రైవేట్ అండర్‌స్కోర్ తీసేసి పబ్లిక్ చేసాం
+  static String formatSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     if (bytes < 1024 * 1024 * 1024) {
@@ -84,7 +85,7 @@ class FileModel {
   bool get isImage => category == FileCategory.image;
   bool get isVideo => category == FileCategory.video;
   bool get isApk => category == FileCategory.apk;
-  bool get isLarge => size > 100 * 1024 * 1024; // > 100MB
+  bool get isLarge => size > 100 * 1024 * 1024;
 
   @override
   bool operator ==(Object other) =>
@@ -109,5 +110,6 @@ class FolderModel {
     required this.lastModified,
   });
 
-  String get formattedSize => FileModel._formatSize(totalSize);
+  // 🛠️ ఇక్కడ పబ్లిక్ మెథడ్ ని పాయింట్ చేసాం
+  String get formattedSize => FileModel.formatSize(totalSize);
 }
