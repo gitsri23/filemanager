@@ -11,6 +11,9 @@ import '../files/files_screen.dart';
 import '../cleaner/cleaner_screen.dart';
 import '../settings/settings_screen.dart';
 
+// Global Key navigation tab handling కోసం
+final GlobalKey<_HomeScreenState> homeScreenKey = GlobalKey<_HomeScreenState>();
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -28,9 +31,14 @@ class _HomeScreenState extends State<HomeScreen> {
     SettingsScreen(),
   ];
 
+  void setTab(int index) {
+    setState(() => _selectedIndex = index);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: homeScreenKey,
       backgroundColor: AppTheme.amoledBlack,
       body: IndexedStack(
         index: _selectedIndex,
@@ -56,6 +64,8 @@ class _HomeTabState extends State<_HomeTab> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // 🛠️ యాప్ ఓపెన్ అవ్వగానే రీసెంట్ ఫైల్స్ మరియు స్టోరేజ్ రెండింటినీ లోడ్ చేస్తుంది
+      context.read<FileService>().loadRootDirectory();
       context.read<StorageService>().analyzeStorage();
     });
   }
@@ -64,7 +74,6 @@ class _HomeTabState extends State<_HomeTab> {
   Widget build(BuildContext context) {
     return CustomScrollView(
       slivers: [
-        // Header
         SliverAppBar(
           pinned: true,
           backgroundColor: AppTheme.amoledBlack,
@@ -110,7 +119,6 @@ class _HomeTabState extends State<_HomeTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Storage card
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: StorageCard(),
@@ -118,7 +126,6 @@ class _HomeTabState extends State<_HomeTab> {
 
               const SizedBox(height: 24),
 
-              // Quick actions
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: const Text(
@@ -134,13 +141,9 @@ class _HomeTabState extends State<_HomeTab> {
               const _QuickActionsGrid(),
 
               const SizedBox(height: 24),
-
-              // Native ad
               const NativeAdWidget(),
-
               const SizedBox(height: 24),
 
-              // Categories
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
@@ -157,7 +160,6 @@ class _HomeTabState extends State<_HomeTab> {
 
               const SizedBox(height: 24),
 
-              // Recent files
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
@@ -186,48 +188,66 @@ class _QuickActionsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final actions = [
-      _QuickAction(
-        label: 'Duplicates',
-        icon: Icons.copy_all_rounded,
-        gradient: AppTheme.warmGradient,
-        onTap: () {},
-      ),
-      _QuickAction(
-        label: 'Large Files',
-        icon: Icons.data_usage_rounded,
-        gradient: AppTheme.purpleGradient,
-        onTap: () {},
-      ),
-      _QuickAction(
-        label: 'WhatsApp',
-        icon: Icons.chat_bubble_rounded,
-        gradient: AppTheme.greenGradient,
-        onTap: () {},
-      ),
-      _QuickAction(
-        label: 'APK Files',
-        icon: Icons.android_rounded,
-        gradient: AppTheme.goldGradient,
-        onTap: () {},
-      ),
-    ];
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
-        children: actions
-            .asMap()
-            .entries
-            .map((e) => Expanded(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      right: e.key < actions.length - 1 ? 10 : 0,
-                    ),
-                    child: e.value,
-                  ),
-                ))
-            .toList(),
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: _QuickAction(
+                label: 'Duplicates',
+                icon: Icons.copy_all_rounded,
+                gradient: AppTheme.warmGradient,
+                onTap: () {
+                  // 🛠️ CleanerScreen ట్యాబ్ కి నావిగేట్ చేసి డూప్లికేట్స్ వెతుకుతుంది
+                  final state = context.findAncestorStateOfType<_HomeScreenState>();
+                  state?.setTab(2); 
+                  context.read<StorageService>().findDuplicates();
+                },
+              ),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: _QuickAction(
+                label: 'Large Files',
+                icon: Icons.data_usage_rounded,
+                gradient: AppTheme.purpleGradient,
+                onTap: () {
+                  final state = context.findAncestorStateOfType<_HomeScreenState>();
+                  state?.setTab(2);
+                },
+              ),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: _QuickAction(
+                label: 'WhatsApp',
+                icon: Icons.chat_bubble_rounded,
+                gradient: AppTheme.greenGradient,
+                onTap: () {
+                  final state = context.findAncestorStateOfType<_HomeScreenState>();
+                  state?.setTab(2);
+                },
+              ),
+            ),
+          ),
+          Expanded(
+            child: _QuickAction(
+              label: 'APK Files',
+              icon: Icons.android_rounded,
+              gradient: AppTheme.goldGradient,
+              onTap: () {
+                final state = context.findAncestorStateOfType<_HomeScreenState>();
+                state?.setTab(1); // FilesScreen కి తీసుకెళ్తుంది
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -282,23 +302,43 @@ class _CategoryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cats = [
-      _Category('Images', Icons.image_rounded, AppTheme.primaryColor),
-      _Category('Videos', Icons.videocam_rounded, const Color(0xFFFF6B6B)),
-      _Category('Music', Icons.music_note_rounded, const Color(0xFF4ECDC4)),
-      _Category('Docs', Icons.description_rounded, const Color(0xFFFFD700)),
-      _Category('Downloads', Icons.download_rounded, const Color(0xFF8B5CF6)),
-      _Category('APKs', Icons.android_rounded, const Color(0xFF00D4FF)),
-    ];
-
+    // 🛠️ క్లిక్ చేసినప్పుడు డైరెక్ట్ గా ఆ కేటగిరీ ఫైల్స్ లోకి నావిగేట్ అవ్వడానికి వీలుగా సెట్ చేసాం
     return SizedBox(
       height: 90,
-      child: ListView.separated(
+      child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: cats.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) => cats[index],
+        children: [
+          _Category('Images', Icons.image_rounded, AppTheme.primaryColor, () {
+            final state = context.findAncestorStateOfType<_HomeScreenState>();
+            state?.setTab(1);
+          }),
+          const SizedBox(width: 12),
+          _Category('Videos', Icons.videocam_rounded, const Color(0xFFFF6B6B), () {
+            final state = context.findAncestorStateOfType<_HomeScreenState>();
+            state?.setTab(1);
+          }),
+          const SizedBox(width: 12),
+          _Category('Music', Icons.music_note_rounded, const Color(0xFF4ECDC4), () {
+            final state = context.findAncestorStateOfType<_HomeScreenState>();
+            state?.setTab(1);
+          }),
+          const SizedBox(width: 12),
+          _Category('Docs', Icons.description_rounded, const Color(0xFFFFD700), () {
+            final state = context.findAncestorStateOfType<_HomeScreenState>();
+            state?.setTab(1);
+          }),
+          const SizedBox(width: 12),
+          _Category('Downloads', Icons.download_rounded, const Color(0xFF8B5CF6), () {
+            final state = context.findAncestorStateOfType<_HomeScreenState>();
+            state?.setTab(1);
+          }),
+          const SizedBox(width: 12),
+          _Category('APKs', Icons.android_rounded, const Color(0xFF00D4FF), () {
+            final state = context.findAncestorStateOfType<_HomeScreenState>();
+            state?.setTab(1);
+          }),
+        ],
       ),
     );
   }
@@ -308,13 +348,14 @@ class _Category extends StatelessWidget {
   final String label;
   final IconData icon;
   final Color color;
+  final VoidCallback onTap;
 
-  const _Category(this.label, this.icon, this.color);
+  const _Category(this.label, this.icon, this.color, this.onTap);
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {},
+      onTap: onTap,
       child: SizedBox(
         width: 70,
         child: Column(
@@ -357,8 +398,8 @@ class _RecentFilesSection extends StatelessWidget {
         padding: EdgeInsets.all(24),
         child: Center(
           child: Text(
-            'No recent files',
-            style: TextStyle(color: Colors.white38),
+            'No recent files (Pull to refresh or wait for scan)',
+            style: TextStyle(color: Colors.white38, fontSize: 13),
           ),
         ),
       );
