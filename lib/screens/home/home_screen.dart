@@ -340,7 +340,11 @@ class FileSearchDelegate extends SearchDelegate {
   List<Widget>? buildActions(BuildContext context) => [IconButton(icon: const Icon(Icons.clear, color: Colors.white), onPressed: () => query = '')];
 
   @override
-  Widget? buildLeading(BuildContext context) => [IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => close(context, null))];
+  // 🛠️ బ్రాకెట్స్ తీసేసి కరెక్ట్ సింగిల్ Widget కింద ఫిక్స్ చేసాం
+  Widget? buildLeading(BuildContext context) => IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => close(context, null));
+
+  @override
+  Widget buildFocusTransitions(BuildContext context, Animation<double> animation) => FadeTransition(opacity: animation, child: buildResults(context));
 
   @override
   Widget buildResults(BuildContext context) {
