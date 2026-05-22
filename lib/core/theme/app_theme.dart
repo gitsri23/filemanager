@@ -59,7 +59,9 @@ class AppTheme {
         error: warningColor,
       ),
       scaffoldBackgroundColor: amoledBlack,
-      cardTheme: CardThemeData(
+      
+      // 🛠️ ఇక్కడ 'CardThemeData' ని తీసేసి 'CardTheme' గా ఫిక్స్ చేసాం 👇
+      cardTheme: CardTheme(
         color: cardDark,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -67,6 +69,7 @@ class AppTheme {
           side: const BorderSide(color: Color(0xFF1F1F1F), width: 1),
         ),
       ),
+      
       appBarTheme: const AppBarTheme(
         backgroundColor: amoledBlack,
         foregroundColor: Colors.white,
