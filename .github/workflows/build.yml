@@ -82,13 +82,17 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      # ─── 🛠️ కరెక్ట్ యుటిలిటీ కి పాయింట్ చేసే పక్కా కోడ్ ప్యాచ్ స్టెప్ ───
+      # ─── 🛠️ ఇంపోర్ట్ మిస్సింగ్ ఇష్యూస్ ని కూడా ఆటోమేటిక్ గా ప్యాచ్ చేసే స్టెప్ ───
       - name: Patch Dart Code Syntax Errors
         run: |
-          # CardThemeData ని కరెక్ట్ CardTheme గా మారుస్తుంది
+          # CardThemeData ని కരెక్ట్ CardTheme గా మారుస్తుంది
           sed -i 's/CardThemeData/CardTheme/g' lib/core/theme/app_theme.dart || true
           
-          # Private formatting method ని మనం క్రియేట్ చేసిన పబ్లిక్ FileService.formatSize వైపు మారుస్తున్నాం 👇
+          # FileService ఇంపోర్ట్ లైన్ ని స్క్రీన్స్ టాప్ లో ఇంజెక్ట్ చేస్తుంది (Missing Getter Error కి పక్కా ఫిక్స్) 👇
+          sed -i '1i import "../../services/file_service.dart";' lib/screens/cleaner/cleaner_screen.dart || true
+          sed -i '1i import "../../services/file_service.dart";' lib/screens/files/files_screen.dart || true
+          
+          # Methods ని FileService.formatSize కి మారుస్తుంది
           sed -i 's/FileModel._formatSize/FileService.formatSize/g' lib/screens/files/files_screen.dart || true
           sed -i 's/FileModel._formatSize/FileService.formatSize/g' lib/screens/cleaner/cleaner_screen.dart || true
           sed -i 's/FileModel.formatSize/FileService.formatSize/g' lib/screens/files/files_screen.dart || true
