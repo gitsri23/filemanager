@@ -31,31 +31,30 @@ jobs:
       - name: Recreate Android Project
         run: |
           rm -rf android
+          # 🛠️ ప్యాకేజీ నేమ్ మారకుండా ఒరిజినల్ 'one_file_manager' తోనే క్రియేట్ చేస్తున్నాం
           flutter create . \
-            --project-name filemanager \
+            --project-name one_file_manager \
             --org one.filemanager \
             --platforms=android
           rm -rf test
 
-      - name: Fix Android Build Configs (Kotlin, AGP, Gradle, SDK 36 & NDK)
+      - name: Fix Android Build Configs & App Name
         run: |
           sed -i 's/id "org.jetbrains.kotlin.android" version .*/id "org.jetbrains.kotlin.android" version "1.9.24" apply false/g' android/settings.gradle
           sed -i 's/id "com.android.application" version .*/id "com.android.application" version "8.5.0" apply false/g' android/settings.gradle
           sed -i 's/gradle-[0-9\.]*-all\.zip/gradle-8.7-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
           
-          # compileSdk మరియు targetSdk రెండింటినీ 36 కి మారుస్తున్నాం
+          # SDK 36 Fixes
           sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle
           sed -i 's/compileSdk flutter.compileSdkVersion/compileSdk 36/g' android/app/build.gradle
           sed -i 's/targetSdk = flutter.targetSdkVersion/targetSdk = 36/g' android/app/build.gradle
           sed -i 's/targetSdk flutter.targetSdkVersion/targetSdk 36/g' android/app/build.gradle
           
-          # NDK Version Fix
+          # NDK Fix
           sed -i '/defaultConfig {/i \    ndkVersion = "26.1.10909125"' android/app/build.gradle
           
-          # ప్యాకేజీ ఐడీ మరియు లాంచ్ పాత్ ఫిక్సెస్
-          sed -i 's/applicationId .*/applicationId "one.filemanager.android"/g' android/app/build.gradle
-          sed -i 's/namespace .*/namespace "one.filemanager.android"/g' android/app/build.gradle
-          sed -i 's/android:name=".MainActivity"/android:name="one.filemanager.one_file_manager.MainActivity"/g' android/app/src/main/AndroidManifest.xml
+          # 🛠️ [ముఖ్యమైన స్టెప్]: ప్యాకేజీ ఐడీ మారకుండా ఉంచి, మేనిఫెస్ట్ లో యాప్ నేమ్ ని మాత్రం 'File Manager' కింద మారుస్తున్నాం
+          sed -i 's/android:label="one_file_manager"/android:label="File Manager"/g' android/app/src/main/AndroidManifest.xml
 
       - name: Add Permissions & Production AdMob Config
         run: |
@@ -75,7 +74,6 @@ jobs:
         run: |
           sed -i 's/disk_space_plus: ^4.0.0/disk_space_plus: ^0.2.4/g' pubspec.yaml
           flutter pub add disk_space_plus:^0.2.4 --offline || true
-          # 🛠️ మిస్సింగ్ url_launcher ప్యాకేజీ ని ఇక్కడ ఫోర్స్ గా యాడ్ చేస్తున్నాం
           flutter pub add url_launcher || true
 
       - name: Add Launcher & Splash Missing Dev Packages
