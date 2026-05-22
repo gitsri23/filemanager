@@ -94,16 +94,17 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      # ─── 🛠️ కంపైలేషన్ ఎర్రర్స్ రాకుండా ఆటో-ప్యాచ్ స్టెప్ (UPDATED) ───
+      # ─── 🛠️ కంపైలేషన్ ఎర్రర్స్ రాకుండా ఆటో-ప్యాచ్ స్టెప్ (Const Issue Fixed) ───
       - name: Patch Dart Code Syntax Errors
         run: |
           sed -i 's/CardThemeData/CardTheme/g' lib/core/theme/app_theme.dart || true
           
-          # 🛠️ Splash Screen లో దొరకని పాత పర్మిషన్ కాల్ ని సేఫ్ గా బైపాస్ చేసాం 
+          # Splash Screen బైపాస్ ప్యాచ్
           sed -i 's/final granted = await fileService.requestStoragePermission();/final granted = true;\/\/ bypassed/g' lib/screens/splash/splash_screen.dart || true
           sed -i 's/await fileService.loadFavorites();/\/\/ bypassed/g' lib/screens/splash/splash_screen.dart || true
           
-          # 🛠️ క్లీనర్ స్క్రీన్ లో ఉన్న కలర్ టైపో ఎర్రర్ (redWithOpacity) ని ఇక్కడ ఫిక్స్ చేసాం
+          # 🛠️ [Const ఎర్రర్ ఫిక్స్]: ఐకాన్ నుండి const ని తీసేసి, కలర్ ని ప్రాపర్ గా విత్ అవుట్ కాన్‌స్టెంట్ ఇంజెక్ట్ చేస్తున్నాం
+          sed -i 's/leading: const Icon(Icons.insert_drive_file_rounded, color: Colors.redWithOpacity, size: 24)/leading: Icon(Icons.insert_drive_file_rounded, color: Colors.red.withOpacity(0.2), size: 24)/g' lib/screens/cleaner/cleaner_screen.dart || true
           sed -i 's/Colors.redWithOpacity/Colors.red.withOpacity(0.2)/g' lib/screens/cleaner/cleaner_screen.dart || true
           
           sed -i '1i import "../../services/file_service.dart";' lib/screens/cleaner/cleaner_screen.dart || true
