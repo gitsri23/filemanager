@@ -1,4 +1,4 @@
-Name: build cleanVault APK
+Name: build cleanvault apk
 
 on:
   push:
